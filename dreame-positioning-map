@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dreame Global Positioning Strategy Map | Global Positioning Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .market-node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .market-node:hover {
+            filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.6));
+        }
+        
+        .tooltip {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 50;
+            max-width: 320px;
+        }
+        
+        .tooltip.active {
+            opacity: 1;
+            transform: translateY(-10px);
+        }
+        
+        .axis-line {
+            stroke: rgba(148, 163, 184, 0.2);
+            stroke-width: 1;
+            stroke-dasharray: 4;
+        }
+        
+        .grid-line {
+            stroke: rgba(148, 163, 184, 0.1);
+            stroke-width: 0.5;
+        }
+        
+        .connection-line {
+            stroke: rgba(56, 189, 248, 0.3);
+            stroke-width: 2;
+            fill: none;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+        
+        .legend-item {
+            transition: all 0.2s ease;
+        }
+        
+        .legend-item:hover {
+            transform: translateX(5px);
+            background: rgba(56, 189, 248, 0.1);
+        }
+        
+        .data-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border-left: 3px solid #38bdf8;
+        }
+        
+        .competitor-dot {
+            transition: all 0.3s ease;
+        }
+        
+        .competitor-dot:hover {
+            r: 8;
+            filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.8));
+        }
+        
+        .tab-active {
+            background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
+            color: white;
+        }
+        
+        .metric-bar {
+            background: linear-gradient(90deg, #38bdf8 0%, #818cf8 100%);
+            height: 6px;
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+        
+        .quadrant-label {
+            font-size: 11px;
+            fill: rgba(148, 163, 184, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .positioning-arc {
+            fill: none;
+            stroke-width: 3;
+            opacity: 0.6;
+        }
+        
+        .brand-territory {
+            fill: rgba(56, 189, 248, 0.1);
+            stroke: rgba(56, 189, 248, 0.4);
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+        }
+    </style>
+</head>
+<body class="text-slate-200">
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-40 glass-panel border-b border-slate-700/50">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">D</div>
+                <div>
+                    <h1 class="text-xl font-bold text-white glow-text">Dreame Global Positioning Map</h1>
+                    <p class="text-xs text-slate-400">Global Strategic Positioning Visualization System</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+                    <span class="text-slate-300">Dreame Position</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-red-400"></span>
+                    <span class="text-slate-300">Competitors</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-emerald-400 opacity-50"></span>
+                    <span class="text-slate-300">White Space</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-12 px-6 max-w-7xl mx-auto">
+        
+        <!-- Control Panel -->
+        <div class="glass-panel rounded-2xl p-6 mb-8">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex gap-2">
+                    <button onclick="switchView('positioning')" id="btn-positioning" class="tab-active px-6 py-2 rounded-full text-sm font-medium transition-all">Positioning Matrix</button>
+                    <button onclick="switchView('competitive')" id="btn-competitive" class="px-6 py-2 rounded-full text-sm font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-all">Competitive Landscape</button>
+                    <button onclick="switchView('evolution')" id="btn-evolution" class="px-6 py-2 rounded-full text-sm font-medium bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-all">Strategic Evolution</button>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-slate-400">
+                    <span>Data Source: IDC 2025Q1, Frost & Sullivan, GfK 2024-2025</span>
+                    <span class="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-xs">Live Update</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-12 gap-6">
+            
+            <!-- Left: Visualization Canvas -->
+            <div class="col-span-12 lg:col-span-8">
+                <div class="glass-panel rounded-2xl p-6 relative overflow-hidden" style="height: 700px;">
+                    <div id="viz-container" class="w-full h-full"></div>
+                    
+                    <!-- Floating Legend -->
+                    <div class="absolute top-6 right-6 glass-panel rounded-xl p-4 space-y-3 max-w-xs">
+                        <h3 class="text-sm font-semibold text-white mb-2">Market Legend</h3>
+                        <div class="legend-item flex items-center gap-3 p-2 rounded-lg cursor-pointer" onclick="highlightMarket('germany')">
+                            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                            <div class="text-xs">
+                                <div class="text-slate-200 font-medium">Germany</div>
+                                <div class="text-slate-500">Engineering Excellence</div>
+                            </div>
+                        </div>
+                        <div class="legend-item flex items-center gap-3 p-2 rounded-lg cursor-pointer" onclick="highlightMarket('usa')">
+                            <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                            <div class="text-xs">
+                                <div class="text-slate-200 font-medium">USA</div>
+                                <div class="text-slate-500">Disruptive Innovation</div>
+                            </div>
+                        </div>
+                        <div class="legend-item flex items-center gap-3 p-2 rounded-lg cursor-pointer" onclick="highlightMarket('china')">
+                            <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                            <div class="text-xs">
+                                <div class="text-slate-200 font-medium">China</div>
+                                <div class="text-slate-500">Full-Scene Ecosystem</div>
+                            </div>
+                        </div>
+                        <div class="legend-item flex items-center gap-3 p-2 rounded-lg cursor-pointer" onclick="highlightMarket('japan')">
+                            <span class="w-3 h-3 rounded-full bg-pink-500"></span>
+                            <div class="text-xs">
+                                <div class="text-slate-200 font-medium">Japan</div>
+                                <div class="text-slate-500">Ultimate Detail</div>
+                            </div>
+                        </div>
+                        <div class="legend-item flex items-center gap-3 p-2 rounded-lg cursor-pointer" onclick="highlightMarket('korea')">
+                            <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                            <div class="text-xs">
+                                <div class="text-slate-200 font-medium">South Korea</div>
+                                <div class="text-slate-500">Smart Living</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Detail Panel -->
+            <div class="col-span-12 lg:col-span-4 space-y-6">
+                
+                <!-- Market Detail Card -->
+                <div id="detail-card" class="data-card rounded-2xl p-6 hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 id="market-title" class="text-2xl font-bold text-white"></h2>
+                        <span id="market-share" class="px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full text-sm font-semibold"></span>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs text-slate-400 uppercase tracking-wider">Core Positioning Claim</label>
+                            <p id="positioning-claim" class="text-sm text-slate-200 mt-1 leading-relaxed"></p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs text-slate-400 uppercase tracking-wider">Rational Benefits</label>
+                                <ul id="rational-benefits" class="text-xs text-slate-300 mt-1 space-y-1"></ul>
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-400 uppercase tracking-wider">Emotional Benefits</label>
+                                <ul id="emotional-benefits" class="text-xs text-slate-300 mt-1 space-y-1"></ul>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs text-slate-400 uppercase tracking-wider">Target Consumer Archetype</label>
+                            <p id="target-persona" class="text-sm text-slate-200 mt-1"></p>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs text-slate-400 uppercase tracking-wider">Key Competitors</label>
+                            <div id="competitors" class="flex flex-wrap gap-2 mt-2"></div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs text-slate-400 uppercase tracking-wider">Cultural Values Alignment</label>
+                            <p id="cultural-values" class="text-sm text-slate-200 mt-1"></p>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-700">
+                            <label class="text-xs text-slate-400 uppercase tracking-wider">Strategic Assessment</label>
+                            <div class="flex items-center gap-2 mt-2">
+                                <div class="flex-1 bg-slate-700 rounded-full h-2">
+                                    <div id="strategy-score" class="metric-bar rounded-full" style="width: 0%"></div>
+                                </div>
+                                <span id="strategy-label" class="text-xs text-cyan-400 font-medium"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Default State -->
+                <div id="default-card" class="glass-panel rounded-2xl p-6 text-center py-12">
+                    <div class="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 7m0 13V7"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-slate-300 mb-2">Explore Dreame's Global Positioning Strategy</h3>
+                    <p class="text-sm text-slate-500">Click on market nodes in the map to view detailed positioning strategy analysis</p>
+                </div>
+
+                <!-- Global Core Positioning -->
+                <div class="glass-panel rounded-2xl p-6">
+                    <h3 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                        Global Positioning Core
+                    </h3>
+                    <div class="space-y-3 text-xs text-slate-300">
+                        <div class="flex items-start gap-3">
+                            <span class="text-cyan-400 font-bold">01</span>
+                            <span><strong>Technical Authority:</strong> High-speed digital motor core technology, 6,379+ global patents</span>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="text-cyan-400 font-bold">02</span>
+                            <span><strong>Premium Disruption:</strong> Delivering Dyson-surpassing performance at 20-30% price advantage</span>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="text-cyan-400 font-bold">03</span>
+                            <span><strong>Glocalization:</strong> Customized product strategy per market, local "know-it-all" teams</span>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="text-cyan-400 font-bold">04</span>
+                            <span><strong>Ecosystem Expansion:</strong> Full-scenario smart ecosystem from cleaning to personal care to major appliances</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- White Space Analysis -->
+                <div class="glass-panel rounded-2xl p-6">
+                    <h3 class="text-sm font-semibold text-white mb-4">Positioning White Spaces</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg">
+                            <span class="text-xs text-slate-300">Middle East Premium Market</span>
+                            <span class="text-xs text-emerald-400">High Opportunity</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg">
+                            <span class="text-xs text-slate-300">Latin America Value Market</span>
+                            <span class="text-xs text-yellow-400">Medium Opportunity</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg">
+                            <span class="text-xs text-slate-300">India Entry-Level Market</span>
+                            <span class="text-xs text-slate-400">Monitoring</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Bottom Metrics -->
+        <div class="grid grid-cols-4 gap-4 mt-8">
+            <div class="glass-panel rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-cyan-400">30+</div>
+                <div class="text-xs text-slate-400 mt-1">Countries with #1 Market Share</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-purple-400">$627</div>
+                <div class="text-xs text-slate-400 mt-1">Q1 2025 Avg. Unit Price (USD)</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-emerald-400">178%</div>
+                <div class="text-xs text-slate-400 mt-1">2025 Global Robot Vacuum Growth</div>
+            </div>
+            <div class="glass-panel rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-pink-400">65%</div>
+                <div class="text-xs text-slate-400 mt-1">Overseas Revenue Share (2024)</div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip glass-panel rounded-xl p-4 border border-cyan-500/30">
+        <div id="tooltip-content"></div>
+    </div>
+
+    <script>
+        // Market Data
+        const marketData = {
+            germany: {
+                name: "Germany",
+                share: "50%+",
+                coordinates: [2, 8],
+                positioning: {
+                    claim: "German-Level Engineering Excellence",
+                    claimCn: "German-Level Engineering Excellence",
+                    rational: ["Auto mop-lifting for carpets", "Long-lasting build quality", "Energy efficiency", "7×24 local service"],
+                    emotional: ["Trust", "Reliability", "Invisible excellence"],
+                    persona: "The Discerning Traditionalist (Age 35-55, values craftsmanship)",
+                    competitors: ["Dyson", "Miele", "iRobot"],
+                    cultural: "Engineering heritage, Quality-over-quantity, Sustainability",
+                    strategyScore: 95,
+                    strategyLabel: "Highly Strategic"
+                },
+                competitors: [
+                    { name: "Dyson", position: [1, 9], share: "15%" },
+                    { name: "Miele", position: [3, 7], share: "12%" },
+                    { name: "iRobot", position: [4, 6], share: "8%" }
+                ]
+            },
+            france: {
+                name: "France",
+                share: "43%",
+                coordinates: [1.5, 7.5],
+                positioning: {
+                    claim: "Premium Lifestyle Integration",
+                    claimCn: "Premium Lifestyle Integration",
+                    rational: ["Elegant design", "Quiet operation", "Smart home integration"],
+                    emotional: ["Sophistication", "Effortless living"],
+                    persona: "The Aesthetic Purist (Age 30-50, design-sensitive)",
+                    competitors: ["Dyson", "Rowenta", "Roborock"],
+                    cultural: "Design consciousness, Art de vivre",
+                    strategyScore: 92,
+                    strategyLabel: "Highly Strategic"
+                },
+                competitors: [
+                    { name: "Dyson", position: [0.5, 8.5], share: "18%" },
+                    { name: "Rowenta", position: [2.5, 6.5], share: "14%" }
+                ]
+            },
+            italy: {
+                name: "Italy",
+                share: "43%",
+                coordinates: [2.5, 7],
+                positioning: {
+                    claim: "Craftsmanship Meets Innovation",
+                    claimCn: "Craftsmanship Meets Innovation",
+                    rational: ["Sleek design", "Hard floor optimization", "Compact living solutions"],
+                    emotional: ["Pride of ownership", "Modern elegance"],
+                    persona: "The Style-Conscious Urbanite (Age 28-45)",
+                    competitors: ["Dyson", "De'Longhi", "Ecovacs"],
+                    cultural: "Design excellence, Family-centered",
+                    strategyScore: 90,
+                    strategyLabel: "Highly Strategic"
+                },
+                competitors: [
+                    { name: "Dyson", position: [1.5, 8], share: "16%" },
+                    { name: "De'Longhi", position: [3.5, 6], share: "10%" }
+                ]
+            },
+            usa: {
+                name: "USA",
+                share: "15%",
+                coordinates: [8, 7],
+                positioning: {
+                    claim: "Super Bowl-Level Tech Innovator",
+                    claimCn: "Super Bowl-Level Tech Innovator",
+                    rational: ["AI navigation", "High-speed motor tech", "Seamless smart home integration", "Premium retail experience"],
+                    emotional: ["Status", "Aspiration", "Champion mindset"],
+                    persona: "The Tech-Forward Achiever (Age 25-45, high income)",
+                    competitors: ["iRobot", "Shark", "Dyson"],
+                    cultural: "Innovation leadership, Convenience, Status consumption",
+                    strategyScore: 88,
+                    strategyLabel: "Strategic Offensive"
+                },
+                competitors: [
+                    { name: "iRobot", position: [7, 6], share: "25%" },
+                    { name: "Shark", position: [9, 5], share: "20%" },
+                    { name: "Dyson", position: [6, 8], share: "12%" }
+                ]
+            },
+            japan: {
+                name: "Japan",
+                share: "Top 3",
+                coordinates: [9, 5],
+                positioning: {
+                    claim: "Ultimate Detail Perfection",
+                    claimCn: "Ultimate Detail Perfection",
+                    rational: ["Compact design", "Low noise", "Precision cleaning", "Space efficiency"],
+                    emotional: ["Perfection", "Harmony", "Care"],
+                    persona: "The Detail-Oriented Minimalist (Age 30-55)",
+                    competitors: ["Panasonic", "Dyson", "iRobot"],
+                    cultural: "Perfectionism, Compact living, Omotenashi (hospitality)",
+                    strategyScore: 93,
+                    strategyLabel: "Deep Localization"
+                },
+                competitors: [
+                    { name: "Panasonic", position: [8, 4], share: "28%" },
+                    { name: "Dyson", position: [10, 6], share: "15%" },
+                    { name: "iRobot", position: [7, 5], share: "12%" }
+                ]
+            },
+            korea: {
+                name: "South Korea",
+                share: "12.8%",
+                coordinates: [8.5, 4.5],
+                positioning: {
+                    claim: "Smart Living Redefined",
+                    claimCn: "Smart Living Redefined",
+                    rational: ["Auto mop replacement system", "NVIDIA AI chip", "8cm threshold crossing", "3 cleaning solutions"],
+                    emotional: ["Tech pride", "Convenience", "Modernity"],
+                    persona: "The Tech-Savvy Early Adopter (Age 25-40)",
+                    competitors: ["LG", "Samsung", "Roborock"],
+                    cultural: "Technology enthusiasm, Hallyu culture, Innovation pride",
+                    strategyScore: 89,
+                    strategyLabel: "Rapid Penetration"
+                },
+                competitors: [
+                    { name: "LG", position: [7.5, 3.5], share: "35%" },
+                    { name: "Samsung", position: [9.5, 5.5], share: "22%" },
+                    { name: "Roborock", position: [8, 4], share: "18%" }
+                ]
+            },
+            singapore: {
+                name: "Singapore",
+                share: "31%",
+                coordinates: [7, 3],
+                positioning: {
+                    claim: "Tropical Climate Specialist",
+                    claimCn: "Tropical Climate Specialist",
+                    rational: ["Anti-mold technology", "Humidity resistance", "Compact storage", "Multi-surface mastery"],
+                    emotional: ["Relief", "Trust", "Adaptability"],
+                    persona: "The Practical Urbanite (Age 30-50, apartment dweller)",
+                    competitors: ["Dyson", "Ecovacs", "iRobot"],
+                    cultural: "Efficiency, Multi-cultural practicality, Smart nation",
+                    strategyScore: 91,
+                    strategyLabel: "Environment Adaptation"
+                },
+                competitors: [
+                    { name: "Dyson", position: [6, 2], share: "20%" },
+                    { name: "Ecovacs", position: [8, 3], share: "15%" }
+                ]
+            },
+            australia: {
+                name: "Australia",
+                share: "Top 3",
+                coordinates: [9, 2],
+                positioning: {
+                    claim: "Rugged Reliability",
+                    claimCn: "Rugged Reliability",
+                    rational: ["Pet hair specialist", "Large home coverage", "Outdoor-indoor transition", "Durable build"],
+                    emotional: ["Freedom", "Outdoor lifestyle", "Peace of mind"],
+                    persona: "The Active Family (Age 35-55, pet owners/large homes)",
+                    competitors: ["Dyson", "Shark", "Roborock"],
+                    cultural: "Outdoor lifestyle, Pet culture, Work-life balance",
+                    strategyScore: 85,
+                    strategyLabel: "Scenario Specialization"
+                },
+                competitors: [
+                    { name: "Dyson", position: [8, 1], share: "25%" },
+                    { name: "Shark", position: [10, 3], share: "18%" }
+                ]
+            },
+            china: {
+                name: "China",
+                share: "Leader",
+                coordinates: [5, 5],
+                positioning: {
+                    claim: "Technology-Defining Luxury Ecosystem",
+                    claimCn: "Technology-Defining Luxury Ecosystem",
+                    rational: ["Full-stack innovation", "Bionic robotic arm", "Cross-category integration", "Cost-performance"],
+                    emotional: ["National pride", "Smart living superiority", "Innovation confidence"],
+                    persona: "The Ecosystem Enthusiast (Age 25-45, full-scenario smart home)",
+                    competitors: ["Roborock", "Ecovacs", "Xiaomi"],
+                    cultural: "Technological self-reliance, Efficiency, Ecosystem integration",
+                    strategyScore: 96,
+                    strategyLabel: "Ecosystem Dominance"
+                },
+                competitors: [
+                    { name: "Roborock", position: [4, 6], share: "19.3%" },
+                    { name: "Ecovacs", position: [6, 4], share: "13.6%" },
+                    { name: "Xiaomi", position: [5, 3], share: "9.9%" }
+                ]
+            }
+        };
+
+        let currentView = 'positioning';
+        let svg, width, height;
+
+        function initViz() {
+            const container = document.getElementById('viz-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+
+            svg = d3.select('#viz-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            drawPositioningView();
+        }
+
+        function drawPositioningView() {
+            svg.selectAll('*').remove();
+
+            const margin = { top: 60, right: 60, bottom: 60, left: 60 };
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Scales
+            const xScale = d3.scaleLinear().domain([0, 10]).range([0, innerWidth]);
+            const yScale = d3.scaleLinear().domain([0, 10]).range([innerHeight, 0]);
+
+            // Grid lines
+            const xTicks = [0, 2, 4, 6, 8, 10];
+            const yTicks = [0, 2, 4, 6, 8, 10];
+
+            g.selectAll('.grid-x')
+                .data(xTicks)
+                .enter()
+                .append('line')
+                .attr('class', 'grid-line')
+                .attr('x1', d => xScale(d))
+                .attr('x2', d => xScale(d))
+                .attr('y1', 0)
+                .attr('y2', innerHeight);
+
+            g.selectAll('.grid-y')
+                .data(yTicks)
+                .enter()
+                .append('line')
+                .attr('class', 'grid-line')
+                .attr('x1', 0)
+                .attr('x2', innerWidth)
+                .attr('y1', d => yScale(d))
+                .attr('y2', d => yScale(d));
+
+            // Axes
+            g.append('line')
+                .attr('class', 'axis-line')
+                .attr('x1', 0)
+                .attr('x2', innerWidth)
+                .attr('y1', yScale(5))
+                .attr('y2', yScale(5));
+
+            g.append('line')
+                .attr('class', 'axis-line')
+                .attr('x1', xScale(5))
+                .attr('x2', xScale(5))
+                .attr('y1', 0)
+                .attr('y2', innerHeight);
+
+            // Axis labels
+            g.append('text')
+                .attr('class', 'quadrant-label')
+                .attr('x', innerWidth - 10)
+                .attr('y', yScale(5) - 10)
+                .attr('text-anchor', 'end')
+                .text('Technical Complexity →');
+
+            g.append('text')
+                .attr('class', 'quadrant-label')
+                .attr('x', xScale(5) + 10)
+                .attr('y', 20)
+                .text('↑ Price Positioning');
+
+            // Quadrant labels
+            const quadrants = [
+                { x: 2.5, y: 8.5, label: "Premium Tech", sub: "High-Tech Focus" },
+                { x: 7.5, y: 8.5, label: "Luxury Ecosystem", sub: "Full-Scene Smart" },
+                { x: 2.5, y: 1.5, label: "Value Practical", sub: "Entry-Level Focus" },
+                { x: 7.5, y: 1.5, label: "Mass Smart", sub: "Smart for Everyone" }
+            ];
+
+            quadrants.forEach(q => {
+                g.append('text')
+                    .attr('x', xScale(q.x))
+                    .attr('y', yScale(q.y))
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', 'rgba(148, 163, 184, 0.3)')
+                    .attr('font-size', '14px')
+                    .attr('font-weight', 'bold')
+                    .text(q.label);
+                
+                g.append('text')
+                    .attr('x', xScale(q.x))
+                    .attr('y', yScale(q.y) - 20)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', 'rgba(148, 163, 184, 0.2)')
+                    .attr('font-size', '10px')
+                    .text(q.sub);
+            });
+
+            // Draw connections between related markets
+            const connections = [
+                ['germany', 'france'],
+                ['france', 'italy'],
+                ['japan', 'korea'],
+                ['korea', 'singapore'],
+                ['singapore', 'australia'],
+                ['china', 'usa'],
+                ['china', 'germany']
+            ];
+
+            connections.forEach(([source, target]) => {
+                if (marketData[source] && marketData[target]) {
+                    g.append('line')
+                        .attr('class', 'connection-line')
+                        .attr('x1', xScale(marketData[source].coordinates[0]))
+                        .attr('y1', yScale(marketData[source].coordinates[1]))
+                        .attr('x2', xScale(marketData[target].coordinates[0]))
+                        .attr('y2', yScale(marketData[target].coordinates[1]));
+                }
+            });
+
+            // Draw competitors first (behind)
+            Object.keys(marketData).forEach(key => {
+                const market = marketData[key];
+                market.competitors.forEach(comp => {
+                    g.append('circle')
+                        .attr('class', 'competitor-dot')
+                        .attr('cx', xScale(comp.position[0]))
+                        .attr('cy', yScale(comp.position[1]))
+                        .attr('r', 6)
+                        .attr('fill', 'rgba(248, 113, 113, 0.6)')
+                        .attr('stroke', 'rgba(248, 113, 113, 0.8)')
+                        .attr('stroke-width', 2)
+                        .on('mouseover', function(event) {
+                            showTooltip(event, `
+                                <div class="text-xs">
+                                    <div class="font-bold text-red-400">${comp.name}</div>
+                                    <div class="text-slate-300">Market Share: ${comp.share}</div>
+                                    <div class="text-slate-400">Competitor</div>
+                                </div>
+                            `);
+                        })
+                        .on('mouseout', hideTooltip);
+                });
+            });
+
+            // Draw Dreame market nodes
+            const colorScale = d3.scaleOrdinal()
+                .domain(['germany', 'france', 'italy', 'usa', 'japan', 'korea', 'singapore', 'australia', 'china'])
+                .range(['#3b82f6', '#60a5fa', '#818cf8', '#a855f7', '#ec4899', '#eab308', '#10b981', '#14b8a6', '#ef4444']);
+
+            Object.keys(marketData).forEach(key => {
+                const market = marketData[key];
+                const [x, y] = market.coordinates;
+                
+                const nodeGroup = g.append('g')
+                    .attr('class', 'market-node')
+                    .attr('transform', `translate(${xScale(x)}, ${yScale(y)})`)
+                    .on('click', () => showMarketDetail(key))
+                    .on('mouseover', function(event) {
+                        d3.select(this).select('circle').attr('r', 25);
+                        showTooltip(event, `
+                            <div class="text-xs">
+                                <div class="font-bold text-cyan-400 text-base mb-1">${market.name}</div>
+                                <div class="text-slate-300 mb-1">Share: ${market.share}</div>
+                                <div class="text-slate-400 italic">"${market.positioning.claim}"</div>
+                                <div class="mt-2 text-cyan-300">Click for details →</div>
+                            </div>
+                        `);
+                    })
+                    .on('mouseout', function() {
+                        d3.select(this).select('circle').attr('r', 20);
+                        hideTooltip();
+                    });
+
+                // Outer glow
+                nodeGroup.append('circle')
+                    .attr('r', 20)
+                    .attr('fill', colorScale(key))
+                    .attr('opacity', 0.3)
+                    .attr('filter', 'blur(8px)');
+
+                // Main circle
+                nodeGroup.append('circle')
+                    .attr('r', 20)
+                    .attr('fill', 'rgba(30, 41, 59, 0.9)')
+                    .attr('stroke', colorScale(key))
+                    .attr('stroke-width', 3);
+
+                // Inner icon/text
+                nodeGroup.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', '0.35em')
+                    .attr('fill', colorScale(key))
+                    .attr('font-size', '10px')
+                    .attr('font-weight', 'bold')
+                    .text(key.substring(0, 2).toUpperCase());
+
+                // Market share label
+                nodeGroup.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', 35)
+                    .attr('fill', 'rgba(226, 232, 240, 0.8)')
+                    .attr('font-size', '11px')
+                    .attr('font-weight', '600')
+                    .text(market.share);
+
+                // Country label
+                nodeGroup.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', 50)
+                    .attr('fill', 'rgba(148, 163, 184, 0.6)')
+                    .attr('font-size', '9px')
+                    .text(market.name.split(' ')[0]);
+            });
+
+            // White space indicators
+            const whiteSpaces = [
+                { x: 1, y: 3, label: "Middle East", opportunity: "Luxury segment underserved" },
+                { x: 3, y: 2, label: "India", opportunity: "Entry-level price point" },
+                { x: 6, y: 1.5, label: "LatAm", opportunity: "Mid-tier growth" }
+            ];
+
+            whiteSpaces.forEach(ws => {
+                g.append('rect')
+                    .attr('x', xScale(ws.x) - 30)
+                    .attr('y', yScale(ws.y) - 20)
+                    .attr('width', 60)
+                    .attr('height', 40)
+                    .attr('rx', 8)
+                    .attr('fill', 'rgba(16, 185, 129, 0.1)')
+                    .attr('stroke', 'rgba(16, 185, 129, 0.4)')
+                    .attr('stroke-width', 1)
+                    .attr('stroke-dasharray', '4,4');
+
+                g.append('text')
+                    .attr('x', xScale(ws.x))
+                    .attr('y', yScale(ws.y))
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', '0.35em')
+                    .attr('fill', 'rgba(16, 185, 129, 0.8)')
+                    .attr('font-size', '10px')
+                    .attr('font-weight', 'bold')
+                    .text(ws.label);
+            });
+        }
+
+        function drawCompetitiveView() {
+            svg.selectAll('*').remove();
+            
+            const margin = { top: 40, right: 40, bottom: 40, left: 200 };
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Competitive landscape data
+            const competitors = [
+                { name: "Dreame", share: 11.3, growth: 178, color: "#38bdf8" },
+                { name: "Roborock", share: 19.3, growth: 50.7, color: "#f472b6" },
+                { name: "Ecovacs", share: 13.6, growth: 11, color: "#a78bfa" },
+                { name: "Xiaomi", share: 9.9, growth: 15, color: "#fb923c" },
+                { name: "iRobot", share: 9.3, growth: -30.6, color: "#94a3b8" }
+            ];
+
+            const xScale = d3.scaleLinear().domain([0, 25]).range([0, innerWidth]);
+            const yScale = d3.scaleBand().domain(competitors.map(d => d.name)).range([0, innerHeight]).padding(0.3);
+
+            // Bars
+            competitors.forEach((comp, i) => {
+                const barGroup = g.append('g');
+                
+                // Background bar
+                barGroup.append('rect')
+                    .attr('x', 0)
+                    .attr('y', yScale(comp.name))
+                    .attr('width', innerWidth)
+                    .attr('height', yScale.bandwidth())
+                    .attr('fill', 'rgba(30, 41, 59, 0.5)')
+                    .attr('rx', 4);
+
+                // Data bar
+                barGroup.append('rect')
+                    .attr('x', 0)
+                    .attr('y', yScale(comp.name))
+                    .attr('width', xScale(comp.share))
+                    .attr('height', yScale.bandwidth())
+                    .attr('fill', comp.color)
+                    .attr('rx', 4)
+                    .attr('opacity', 0.8);
+
+                // Label
+                g.append('text')
+                    .attr('x', -10)
+                    .attr('y', yScale(comp.name) + yScale.bandwidth()/2)
+                    .attr('text-anchor', 'end')
+                    .attr('dy', '0.35em')
+                    .attr('fill', comp.color)
+                    .attr('font-size', '12px')
+                    .attr('font-weight', 'bold')
+                    .text(comp.name);
+
+                // Share value
+                g.append('text')
+                    .attr('x', xScale(comp.share) + 10)
+                    .attr('y', yScale(comp.name) + yScale.bandwidth()/2)
+                    .attr('dy', '0.35em')
+                    .attr('fill', '#e2e8f0')
+                    .attr('font-size', '12px')
+                    .attr('font-weight', 'bold')
+                    .text(comp.share + '%');
+
+                // Growth indicator
+                const growthColor = comp.growth > 0 ? '#10b981' : '#ef4444';
+                const growthIcon = comp.growth > 0 ? '↑' : '↓';
+                
+                g.append('text')
+                    .attr('x', innerWidth - 80)
+                    .attr('y', yScale(comp.name) + yScale.bandwidth()/2)
+                    .attr('dy', '0.35em')
+                    .attr('fill', growthColor)
+                    .attr('font-size', '11px')
+                    .text(`${growthIcon} ${Math.abs(comp.growth)}% YoY`);
+            });
+
+            // Title
+            g.append('text')
+                .attr('x', innerWidth/2)
+                .attr('y', -20)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#e2e8f0')
+                .attr('font-size', '14px')
+                .attr('font-weight', 'bold')
+                .text('Global Smart Robot Vacuum Market Share Q1 2025 (IDC Data)');
+        }
+
+        function drawEvolutionView() {
+            svg.selectAll('*').remove();
+            
+            const margin = { top: 60, right: 60, bottom: 60, left: 60 };
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Timeline data
+            const timeline = [
+                { year: 2018, event: "Brand Founded", markets: 1, positioning: "Technology-Driven" },
+                { year: 2019, event: "Europe Entry", markets: 3, positioning: "Engineering Excellence" },
+                { year: 2020, event: "Asia Expansion", markets: 8, positioning: "Detail Perfection" },
+                { year: 2022, event: "USA Breakthrough", markets: 15, positioning: "Disruptive Innovation" },
+                { year: 2024, event: "Global Leader", markets: 30, positioning: "Ecosystem Definition" },
+                { year: 2025, event: "Appliance Extension", markets: 100, positioning: "Full-Scene Smart" }
+            ];
+
+            const xScale = d3.scaleLinear().domain([2018, 2025]).range([0, innerWidth]);
+            const yScale = d3.scaleLinear().domain([0, 100]).range([innerHeight, 0]);
+
+            // Line
+            const line = d3.line()
+                .x(d => xScale(d.year))
+                .y(d => yScale(d.markets))
+                .curve(d3.curveMonotoneX);
+
+            // Area under line
+            const area = d3.area()
+                .x(d => xScale(d.year))
+                .y0(innerHeight)
+                .y1(d => yScale(d.markets))
+                .curve(d3.curveMonotoneX);
+
+            g.append('path')
+                .datum(timeline)
+                .attr('fill', 'rgba(56, 189, 248, 0.2)')
+                .attr('d', area);
+
+            g.append('path')
+                .datum(timeline)
+                .attr('fill', 'none')
+                .attr('stroke', '#38bdf8')
+                .attr('stroke-width', 3)
+                .attr('d', line);
+
+            // Points
+            timeline.forEach(d => {
+                const point = g.append('g')
+                    .attr('transform', `translate(${xScale(d.year)}, ${yScale(d.markets)})`);
+
+                point.append('circle')
+                    .attr('r', 8)
+                    .attr('fill', '#0f172a')
+                    .attr('stroke', '#38bdf8')
+                    .attr('stroke-width', 3);
+
+                point.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', -15)
+                    .attr('fill', '#e2e8f0')
+                    .attr('font-size', '11px')
+                    .attr('font-weight', 'bold')
+                    .text(d.markets);
+
+                point.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', 25)
+                    .attr('fill', '#94a3b8')
+                    .attr('font-size', '9px')
+                    .text(d.year);
+
+                // Event label
+                point.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', 40)
+                    .attr('fill', '#38bdf8')
+                    .attr('font-size', '10px')
+                    .text(d.event);
+
+                // Positioning label
+                point.append('text')
+                    .attr('text-anchor', 'middle')
+                    .attr('dy', 55)
+                    .attr('fill', 'rgba(148, 163, 184, 0.8)')
+                    .attr('font-size', '9px')
+                    .text(d.positioning);
+            });
+
+            // Axis
+            g.append('text')
+                .attr('x', innerWidth/2)
+                .attr('y', -30)
+                .attr('text-anchor', 'middle')
+                .attr('fill', '#e2e8f0')
+                .attr('font-size', '14px')
+                .attr('font-weight', 'bold')
+                .text('Dreame Globalization Strategy Evolution (2018-2025)');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            
+            // Update buttons
+            ['positioning', 'competitive', 'evolution'].forEach(v => {
+                const btn = document.getElementById(`btn-${v}`);
+                if (v === view) {
+                    btn.classList.add('tab-active');
+                    btn.classList.remove('bg-slate-700/50', 'text-slate-300');
+                } else {
+                    btn.classList.remove('tab-active');
+                    btn.classList.add('bg-slate-700/50', 'text-slate-300');
+                }
+            });
+
+            // Redraw
+            if (view === 'positioning') drawPositioningView();
+            else if (view === 'competitive') drawCompetitiveView();
+            else if (view === 'evolution') drawEvolutionView();
+        }
+
+        function showMarketDetail(marketKey) {
+            const data = marketData[marketKey];
+            if (!data) return;
+
+            document.getElementById('default-card').classList.add('hidden');
+            document.getElementById('detail-card').classList.remove('hidden');
+
+            document.getElementById('market-title').textContent = data.name;
+            document.getElementById('market-share').textContent = `Share: ${data.share}`;
+            document.getElementById('positioning-claim').textContent = `"${data.positioning.claim}"`;
+            
+            const rationalList = document.getElementById('rational-benefits');
+            rationalList.innerHTML = data.positioning.rational.map(b => `<li class="flex items-start gap-2"><span class="text-cyan-400 mt-1">•</span>${b}</li>`).join('');
+            
+            const emotionalList = document.getElementById('emotional-benefits');
+            emotionalList.innerHTML = data.positioning.emotional.map(b => `<li class="flex items-start gap-2"><span class="text-pink-400 mt-1">•</span>${b}</li>`).join('');
+            
+            document.getElementById('target-persona').textContent = data.positioning.persona;
+            
+            const compDiv = document.getElementById('competitors');
+            compDiv.innerHTML = data.positioning.competitors.map(c => 
+                `<span class="px-2 py-1 bg-red-500/20 text-red-300 rounded text-xs">${c}</span>`
+            ).join('');
+            
+            document.getElementById('cultural-values').textContent = data.positioning.cultural;
+            
+            document.getElementById('strategy-score').style.width = data.positioning.strategyScore + '%';
+            document.getElementById('strategy-label').textContent = data.positioning.strategyLabel;
+        }
+
+        function highlightMarket(marketKey) {
+            showMarketDetail(marketKey);
+            
+            // Visual feedback on chart
+            svg.selectAll('.market-node')
+                .transition()
+                .duration(300)
+                .attr('opacity', function() {
+                    const transform = d3.select(this).attr('transform');
+                    return transform && transform.includes(marketData[marketKey].coordinates[0]) ? 1 : 0.3;
+                });
+            
+            setTimeout(() => {
+                svg.selectAll('.market-node')
+                    .transition()
+                    .duration(300)
+                    .attr('opacity', 1);
+            }, 2000);
+        }
+
+        function showTooltip(event, content) {
+            const tooltip = document.getElementById('tooltip');
+            const tooltipContent = document.getElementById('tooltip-content');
+            
+            tooltipContent.innerHTML = content;
+            tooltip.style.left = (event.pageX + 15) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+            tooltip.classList.add('active');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('active');
+        }
+
+        // Initialize
+        window.addEventListener('load', initViz);
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('viz-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            svg.attr('width', width).attr('height', height);
+            switchView(currentView);
+        });
+    </script>
+</body>
+</html>
